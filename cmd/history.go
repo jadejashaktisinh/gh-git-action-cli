@@ -26,14 +26,14 @@ var historyCmd = &cobra.Command{
 		}
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		fmt.Fprintln(w, "TIMESTAMP\tREPOSITORY\tWORKFLOW\tBRANCH\tCONCLUSION")
+		fmt.Fprintln(w, "TIMESTAMP\tWORKFLOW\tJOB\tMODE\tSTATUS")
 		
 		for _, r := range records {
 			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
 				r.Timestamp.Format(time.RFC3339),
-				r.Repository,
-				r.Workflow,
-				r.Branch,
+				r.WorkflowFile,
+				r.TargetJob,
+				r.Mode,
 				r.Conclusion,
 			)
 		}

@@ -1,0 +1,8 @@
+name: Test Workflow
+on: push
+jobs:
+  test:
+    name: Hello Job
+    steps:
+      - name: Say Hello
+        run: echo "Hello from gh-git-action-cli!"

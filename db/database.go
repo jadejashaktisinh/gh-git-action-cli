@@ -11,13 +11,14 @@ import (
 )
 
 type Record struct {
-	RunID      int64             `json:"run_id"`
-	Timestamp  time.Time         `json:"timestamp"`
-	Repository string            `json:"repository"`
-	Workflow   string            `json:"workflow"`
-	Branch     string            `json:"branch"`
-	Inputs     map[string]string `json:"inputs"`
-	Conclusion string            `json:"conclusion"`
+	LocalRunID   string    `json:"local_run_id"`
+	Timestamp    time.Time `json:"timestamp"`
+	WorkflowFile string    `json:"workflow_file"`
+	TargetJob    string    `json:"target_job"`
+	Mode         string    `json:"execution_mode"`
+	EnvSource    string    `json:"env_source"`
+	DurationMS   int64     `json:"duration_ms"`
+	Conclusion   string    `json:"status"`
 }
 
 var db *bbolt.DB

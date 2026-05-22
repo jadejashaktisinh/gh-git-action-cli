@@ -5,127 +5,141 @@ Copyright © 2026 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"os"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/jadejashaktisinh/gh-git-action-cli/config"
 	"github.com/jadejashaktisinh/gh-git-action-cli/db"
+	"github.com/jadejashaktisinh/gh-git-action-cli/parser"
+	"github.com/jadejashaktisinh/gh-git-action-cli/runner"
 	"github.com/jadejashaktisinh/gh-git-action-cli/tui"
 	"github.com/spf13/cobra"
 )
 
 var (
-	repo    string
-	branch  string
-	inputs  []string
+	jobName string
+	envFile string
 )
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "gh-git-action-cli [workflow-file.yml]",
-	Short: "Trigger, track, and manage manual GitHub Actions",
-	Long: `gh-git-action-cli is a GitHub CLI extension to trigger, track, and manage 
-manual GitHub Actions (workflow_dispatch) with local configuration, 
-local history tracking, and an interactive terminal UI.`,
+	Short: "Execute GitHub Actions workflows 100% locally",
+	Long: `gh-git-action-cli is a GitHub CLI extension that intercepts and 
+executes GitHub Actions workflows 100% locally on your computer.`,
 	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		if len(args) == 0 && repo == "" && branch == "" && len(inputs) == 0 {
-			p := tea.NewProgram(tui.InitialModel(), tea.WithAltScreen())
-			if _, err := p.Run(); err != nil {
+		if len(args) == 0 && jobName == "" && envFile == "" {
+			m := tui.InitialModel()
+			p := tea.NewProgram(m, tea.WithAltScreen())
+			finalModel, err := p.Run()
+			if err != nil {
 				fmt.Printf("Error running TUI: %v", err)
 				os.Exit(1)
+			}
+			
+			if tm, ok := finalModel.(tui.Model); ok && tm.Job != "" {
+				jobName = tm.Job
+				executeLocal([]string{tm.Workflow})
 			}
 			return
 		}
 
-		// Headless execution
-		executeHeadless(args)
+		// Local execution
+		executeLocal(args)
 	},
 }
 
-func executeHeadless(args []string) {
-	if repo == "" {
-		fmt.Fprintln(os.Stderr, "Error: --repo is required for headless execution")
-		os.Exit(1)
-	}
-
-	workflow := ""
+func executeLocal(args []string) {
+	workflowPath := ""
 	if len(args) > 0 {
-		workflow = args[0]
+		workflowPath = args[0]
 	} else {
-		fmt.Fprintln(os.Stderr, "Error: workflow-file.yml is required as an argument")
+		// Try to find workflows automatically
+		files, _ := parser.FindWorkflows()
+		if len(files) == 0 {
+			fmt.Fprintln(os.Stderr, "Error: no workflow files found in .github/workflows/")
+			os.Exit(1)
+		}
+		workflowPath = files[0] // Default to the first one for now
+	}
+
+	wf, err := parser.ParseWorkflow(workflowPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing workflow: %v\n", err)
 		os.Exit(1)
 	}
 
-	if branch == "" {
-		branch = "main" // Default to main
-	}
-
-	inputMap := make(map[string]string)
-	for _, i := range inputs {
-		// Expecting key=value
-		parts := splitInput(i)
-		if len(parts) == 2 {
-			inputMap[parts[0]] = parts[1]
+	env := make(map[string]string)
+	if envFile != "" {
+		loaded, err := parser.LoadEnvFile(envFile)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error loading env file: %v\n", err)
+			os.Exit(1)
+		}
+		for k, v := range loaded {
+			env[k] = v
 		}
 	}
 
-	fmt.Printf("Triggering workflow %s in %s on branch %s...\n", workflow, repo, branch)
-
-	client, err := api.DefaultRESTClient()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error creating GitHub client: %v\n", err)
-		os.Exit(1)
+	// Global workflow env
+	for k, v := range wf.Env {
+		if _, ok := env[k]; !ok {
+			env[k] = v
+		}
 	}
 
-	body := map[string]interface{}{
-		"ref": branch,
-	}
-	if len(inputMap) > 0 {
-		body["inputs"] = inputMap
-	}
+	if jobName != "" {
+		job, ok := wf.Jobs[jobName]
+		if !ok {
+			fmt.Fprintf(os.Stderr, "Error: job %s not found in %s\n", jobName, workflowPath)
+			os.Exit(1)
+		}
+		
+		// Merge job env
+		for k, v := range job.Env {
+			env[k] = v
+		}
 
-	jsonBody, err := json.Marshal(body)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error marshaling request body: %v\n", err)
-		os.Exit(1)
-	}
+		err = runner.RunJob(job, runner.RunOptions{Env: env})
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Job failed: %v\n", err)
+			os.Exit(1)
+		}
+	} else {
+		// Run all jobs (sequentially for now)
+		for _, job := range wf.Jobs {
+			// Merge job env
+			jobEnv := make(map[string]string)
+			for k, v := range env {
+				jobEnv[k] = v
+			}
+			for k, v := range job.Env {
+				jobEnv[k] = v
+			}
 
-	path := fmt.Sprintf("repos/%s/actions/workflows/%s/dispatches", repo, workflow)
-	err = client.Post(path, bytes.NewReader(jsonBody), nil)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error triggering workflow: %v\n", err)
-		os.Exit(1)
+			err = runner.RunJob(job, runner.RunOptions{Env: jobEnv})
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Job %s failed: %v\n", job.Name, err)
+				os.Exit(1)
+			}
+		}
 	}
-
-	fmt.Println("Successfully triggered workflow!")
 
 	// Save to history
 	record := db.Record{
-		Timestamp:  time.Now(),
-		Repository: repo,
-		Workflow:   workflow,
-		Branch:     branch,
-		Inputs:     inputMap,
-		Conclusion: "triggered",
+		Timestamp:    time.Now(),
+		WorkflowFile: workflowPath,
+		TargetJob:    jobName,
+		Conclusion:   "passed",
+		Mode:         "native-shell",
+		EnvSource:    envFile,
 	}
 	if err := db.SaveRun(record); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: failed to save to history: %v\n", err)
 	}
-}
-
-func splitInput(s string) []string {
-	for i := 0; i < len(s); i++ {
-		if s[i] == '=' {
-			return []string{s[:i], s[i+1:]}
-		}
-	}
-	return nil
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -149,9 +163,6 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVarP(&repo, "repo", "r", "", "Repository to target (owner/repo)")
-	rootCmd.PersistentFlags().StringVarP(&branch, "branch", "b", "", "Branch to target")
-	rootCmd.Flags().StringSliceVarP(&inputs, "input", "i", []string{}, "Inputs in key=value format")
+	rootCmd.Flags().StringVarP(&jobName, "job", "j", "", "Job name to execute")
+	rootCmd.Flags().StringVarP(&envFile, "env-file", "e", "", "Path to .env file")
 }
-
-
