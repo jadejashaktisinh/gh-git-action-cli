@@ -40,11 +40,10 @@ func ParseWorkflow(path string) (*Workflow, error) {
 	if err := yaml.Unmarshal(data, &workflow); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal workflow: %w", err)
 	}
-
 	workflow.Path = path
 	return &workflow, nil
 }
 
 func FindWorkflows() ([]string, error) {
-	return filepath.Glob(".github/workflows/*.yml")
+	return filepath.Glob("./.github/workflows/*.yml")
 }

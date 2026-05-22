@@ -6,3 +6,10 @@ jobs:
     steps:
       - name: Say Hello
         run: echo "Hello from gh-git-action-cli!"
+  test2:
+    name: Hello2 Job
+    steps:
+      - name: Say Hello
+        run: |
+          echo "Hello from gh-git-action-cli!"
+          echo "This is the second job."

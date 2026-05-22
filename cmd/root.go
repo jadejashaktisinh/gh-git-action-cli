@@ -1,6 +1,5 @@
 /*
 Copyright © 2026 NAME HERE <EMAIL ADDRESS>
-
 */
 package cmd
 
@@ -39,7 +38,7 @@ executes GitHub Actions workflows 100% locally on your computer.`,
 				fmt.Printf("Error running TUI: %v", err)
 				os.Exit(1)
 			}
-			
+
 			if tm, ok := finalModel.(tui.Model); ok && tm.Job != "" {
 				jobName = tm.Job
 				executeLocal([]string{tm.Workflow})
@@ -90,14 +89,13 @@ func executeLocal(args []string) {
 			env[k] = v
 		}
 	}
-
 	if jobName != "" {
 		job, ok := wf.Jobs[jobName]
 		if !ok {
 			fmt.Fprintf(os.Stderr, "Error: job %s not found in %s\n", jobName, workflowPath)
 			os.Exit(1)
 		}
-		
+
 		// Merge job env
 		for k, v := range job.Env {
 			env[k] = v

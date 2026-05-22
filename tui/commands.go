@@ -1,8 +1,8 @@
 package tui
 
 import (
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/bubbles/list"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/jadejashaktisinh/gh-git-action-cli/parser"
 )
 
@@ -34,7 +34,6 @@ func fetchLocalWorkflows() tea.Cmd {
 			}
 			items[i] = item{title: title, desc: f}
 		}
-
 		return workflowMsg(items)
 	}
 }
@@ -54,7 +53,6 @@ func fetchLocalJobs(path string) tea.Cmd {
 			}
 			items = append(items, item{title: title, desc: id})
 		}
-
 		return jobMsg(items)
 	}
 }

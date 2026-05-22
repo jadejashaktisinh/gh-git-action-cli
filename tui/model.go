@@ -14,11 +14,11 @@ const (
 )
 
 type Model struct {
-	state      state
-	list       list.Model
-	Workflow   string
-	Job        string
-	err        error
+	state    state
+	list     list.Model
+	Workflow string
+	Job      string
+	err      error
 }
 
 func (m Model) Init() tea.Cmd {
@@ -41,7 +41,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			} else if m.state == stateJobSelection {
 				if i, ok := m.list.SelectedItem().(item); ok {
-					m.Job = i.title
+					m.Job = i.desc
 					m.state = stateRunning
 					return m, tea.Quit
 				}
@@ -85,7 +85,7 @@ func (m Model) View() string {
 func InitialModel() Model {
 	l := list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0)
 	l.Title = "Select Local Workflow"
-	
+
 	return Model{
 		state: stateWorkflowSelection,
 		list:  l,
