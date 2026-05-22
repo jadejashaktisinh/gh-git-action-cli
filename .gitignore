@@ -1,2 +1,29 @@
-/gh-git-action-cli
-/gh-git-action-cli.exe
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# Project specific binaries
+gh-git-action-cli
+gh-trigger
+
+# Configuration and Database (local development)
+history.db
+config.yaml
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
