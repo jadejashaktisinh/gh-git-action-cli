@@ -46,6 +46,7 @@ func fetchLocalJobs(path string) tea.Cmd {
 		}
 
 		items := make([]list.Item, 0, len(wf.Jobs))
+		items = append(items, item{title: "Run whole workflow", desc: "workflow"})
 		for id, job := range wf.Jobs {
 			title := id
 			if job.Name != "" {

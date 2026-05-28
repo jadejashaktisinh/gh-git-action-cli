@@ -38,7 +38,7 @@ func RunStep(step parser.Step, opts RunOptions) error {
 	fmt.Printf("🔄 Step: %s\n", name)
 
 	cmd := exec.Command("sh", "-c", step.Run)
-	
+
 	// Combine environments: Host < Global Env < Job Env < Step Env
 	cmd.Env = os.Environ()
 	for k, v := range opts.Env {
@@ -52,4 +52,18 @@ func RunStep(step parser.Step, opts RunOptions) error {
 	cmd.Stderr = os.Stderr
 
 	return cmd.Run()
+}
+
+func RunWorkflow(wf parser.Workflow, opts RunOptions) error {
+	fmt.Printf("🚀 Running Workflow: %s\n", wf.Path)
+
+	for job := range wf.Jobs {
+		err := RunJob(wf.Jobs[job], opts)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Job %s failed: %v\n", wf.Jobs[job].Name, err)
+			return err
+		}
+	}
+
+	return nil
 }

@@ -30,7 +30,7 @@ var rootCmd = &cobra.Command{
 executes GitHub Actions workflows 100% locally on your computer.`,
 	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		if len(args) == 0 && jobName == "" && envFile == "" {
+		if len(args) == 0 && jobName == "" {
 			m := tui.InitialModel()
 			p := tea.NewProgram(m, tea.WithAltScreen())
 			finalModel, err := p.Run()
@@ -91,7 +91,7 @@ func executeLocal(args []string) {
 	}
 	if jobName != "" {
 		job, ok := wf.Jobs[jobName]
-		if !ok {
+		if !ok && "workflow" != jobName {
 			fmt.Fprintf(os.Stderr, "Error: job %s not found in %s\n", jobName, workflowPath)
 			os.Exit(1)
 		}
@@ -101,7 +101,11 @@ func executeLocal(args []string) {
 			env[k] = v
 		}
 
-		err = runner.RunJob(job, runner.RunOptions{Env: env})
+		if "workflow" != jobName {
+			err = runner.RunJob(job, runner.RunOptions{Env: env})
+		} else {
+			err = runner.RunWorkflow(*wf, runner.RunOptions{Env: env})
+		}
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Job failed: %v\n", err)
 			os.Exit(1)
